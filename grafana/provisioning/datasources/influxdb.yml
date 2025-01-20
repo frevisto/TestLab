@@ -1,0 +1,13 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    isDefault: true
+    database: mydb  # Use the database name defined in your InfluxDB
+    user: admin  # Username for InfluxDB (as defined in the environment variables)
+    password: admin123  # Password for the InfluxDB user
+    jsonData:
+      version: InfluxQL  # InfluxDB 1.x uses InfluxQL by default (instead of Flux)

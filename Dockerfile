@@ -1,25 +1,13 @@
-# Base do Golang para build
-ARG GO_VERSION=1.23.4
-ARG VARIANT=alpine3.20
-FROM golang:${GO_VERSION}-${VARIANT} AS builder
+# Use an official InfluxDB image for the database
+FROM influxdb:1.8.10 as influxdb
 
-# Configurar diretório de trabalho
-WORKDIR /build
+# Add any custom configurations (optional)
+# COPY ./influxdb.conf /etc/influxdb/influxdb.conf
 
-# Instalar o Git e configurar acessos anônimos
-RUN apk update && apk add --no-cache git && \
-    git config --global url."https://github.com/".insteadOf git@github.com:
+# For K6, add a custom K6 build if needed
+FROM grafana/k6:latest as k6
 
-# Instalar o xk6 e compilar com a extensão para PostgreSQL
-RUN go install go.k6.io/xk6/cmd/xk6@latest && \
-    xk6 build --with github.com/grafana/xk6-output-postgres@latest
+# For Grafana, ensure the correct version and settings
+FROM grafana/grafana:latest as grafana
 
-# Criar uma imagem final baseada no Alpine
-FROM alpine:${VARIANT}
-
-# Copiar o binário gerado para a imagem final
-COPY --from=builder /build/k6 /usr/local/bin/k6
-
-# Definir o entrypoint para o binário k6
-ENTRYPOINT ["k6"]
-
+# Add any custom configurations (optional)

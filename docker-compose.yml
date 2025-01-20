@@ -1,53 +1,36 @@
-version: '3.3'
-
 services:
-  postgres:
-    image: postgres:15
-    container_name: postgres
-    environment:
-      POSTGRES_USER: grafana
-      POSTGRES_PASSWORD: grafana
-      POSTGRES_DB: k6_results
+  influxdb:
+    image: influxdb:1.8.10
+    container_name: influxdb
     ports:
-      - "5432:5432"
+      - "8086:8086"
+    environment:
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin123
+      - INFLUXDB_DB=mydb  
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ./init-influxdb.sh:/docker-entrypoint-initdb.d/init-influxdb.sh  # Run script at startup
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    depends_on:
-      - postgres
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
     volumes:
-      - grafana-data:/var/lib/grafana
-
-  xk6:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: xk6
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - /tmp/influxdb-config.env:/etc/grafana/.env  # Mount the InfluxDB configuration file
     depends_on:
-      - postgres
+      - influxdb
+
+  k6:
+    image: grafana/k6:latest
+    container_name: k6
+    entrypoint: [ "k6" ]
+    command: [ "run", "--out", "influxdb=http://influxdb:8086/mydb", "/scripts/my-test-script.js" ] 
+                                                  # Alterar o nome dos scripts conforme necessário
     volumes:
-      - ./scripts:/scripts
-    entrypoint: ["k6", "run", "/scripts/script.js"]
-
-volumes:
-  postgres-data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ./data/postgres
-  grafana-data:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ./data/grafana
-
+      - ./scripts:/scripts # Maps the K6 scripts directory
+    depends_on:
+      - influxdb
